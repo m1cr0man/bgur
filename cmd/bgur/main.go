@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	api := imgur.ImgurAPI{}
+	api := imgur.NewAPI()
 
 	configPath := configdir.LocalConfig("bgur")
 	err := configdir.MakePath(configPath) // Ensure it exists.

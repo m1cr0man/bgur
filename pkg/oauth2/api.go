@@ -1,4 +1,4 @@
-package imgur
+package oauth2
 
 import (
 	"context"
@@ -15,7 +15,12 @@ import (
 	"time"
 )
 
-func (i *ImgurAPI) AuthFromWeb() (*oauth2.Token, error) {
+type API struct {
+	authConfig *oauth2.Config
+	Client     *http.Client
+}
+
+func (i *API) AuthFromWeb() (*oauth2.Token, error) {
 
 	// Generate a random string for the state value
 	// Prevents XSS
@@ -99,7 +104,7 @@ func (i *ImgurAPI) AuthFromWeb() (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (i *ImgurAPI) AuthFromFile(tokenFile string) (token *oauth2.Token, err error) {
+func (i *API) AuthFromFile(tokenFile string) (token *oauth2.Token, err error) {
 	token = &oauth2.Token{}
 
 	// Try reading the token from the file
@@ -111,22 +116,16 @@ func (i *ImgurAPI) AuthFromFile(tokenFile string) (token *oauth2.Token, err erro
 	return
 }
 
-func (i *ImgurAPI) SaveAuth(tokenFile string, token *oauth2.Token) error {
+func (i *API) SaveAuth(tokenFile string, token *oauth2.Token) error {
 	jsonData, _ := json.Marshal(token)
 	return ioutil.WriteFile(tokenFile, jsonData, 0640)
 }
 
-func (i *ImgurAPI) Authorize(tokenFile string) error {
-	i.authConfig = &oauth2.Config{
-		ClientID:     "825af7b91a9dfbf",
-		ClientSecret: ClientSecret,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:   "https://api.imgur.com/oauth2/authorize",
-			TokenURL:  "https://api.imgur.com/oauth2/token",
-			AuthStyle: oauth2.AuthStyleInParams,
-		},
-	}
+func (i *API) SetConfig(config *oauth2.Config) {
+	i.authConfig = config
+}
 
+func (i *API) Authorize(tokenFile string) error {
 	var token *oauth2.Token
 
 	token, err := i.AuthFromFile(tokenFile)
@@ -142,7 +141,7 @@ func (i *ImgurAPI) Authorize(tokenFile string) error {
 	}
 
 	// Set up authenticated http client
-	i.client = i.authConfig.Client(context.Background(), token)
+	i.Client = i.authConfig.Client(context.Background(), token)
 
 	// Save the token
 	if err = i.SaveAuth(tokenFile, token); err != nil {
