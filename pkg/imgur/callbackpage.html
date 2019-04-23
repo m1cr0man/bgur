@@ -1,14 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>Bgur Authorization</title>
+    <meta charset="UTF-8">
+    <title>Bgur Authorization</title>
 </head>
 <body>
-	<h1>Authorizing program, bear with us</h1>
+<h1>Authorizing program, bare with us</h1>
 
-	<script type="text/javascript">
+<h2 id="error"></h2>
 
-	</script>
+<script type="text/javascript">
+    function showError(err) {
+        document.getElementById('error').innerText = 'Error: ' + err;
+    }
+
+    // Extract the query string and use it as the reqBody
+    // It is already in the right format
+    var queryString = location.hash.substring(1);
+
+    // POST the query string to this page so bgur can process it
+    fetch(new Request('/oauthcallback', {
+        method: 'POST',
+        body: queryString,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        }
+    }))
+        .then(function (resp) {
+            if (resp.status === 201) {
+                window.close();
+            } else {
+                resp.text().then(function (msg) {
+                    showError(resp.status + ' ' + msg);
+                });
+            }
+        })
+        .catch(showError);
+</script>
 </body>
 </html>

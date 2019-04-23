@@ -26,8 +26,23 @@ func (i *ImgurAPI) WaitForAuth(stateStr string) (*oauth2.Token, error) {
 
 	http.HandleFunc("/oauthcallback", func(resp http.ResponseWriter, req *http.Request) {
 		if req.Method == http.MethodGet {
-			resp.Header().Set("Content-Type", "text/html; charset=utf-8")
+			resp.Header().Set("Content-Type", "text/html;charset=UTF-8")
 			resp.Header().Set("Content-Encoding", "gzip")
+
+			// Check state
+			if req.URL.Query().Get("state") != stateStr {
+				fmt.Println("STATE STRING DOES NOT MATCH! You have probably been hacked." +
+					"Check your system security and try again")
+
+				// Shutdown soon
+				go func() {
+					time.Sleep(time.Second)
+					_ = server.Shutdown(context.Background())
+				}()
+
+				return
+			}
+
 			if _, err := resp.Write(CallbackPageParsed); err != nil {
 				fmt.Println("Failed to write GET response: ", err)
 			}
@@ -36,13 +51,6 @@ func (i *ImgurAPI) WaitForAuth(stateStr string) (*oauth2.Token, error) {
 
 			if err := req.ParseForm(); err != nil {
 				fmt.Println("Failed to parse POST form data: ", err)
-				return
-			}
-
-			// Check state
-			if req.FormValue("state") != stateStr {
-				fmt.Println("STATE STRING DOES NOT MATCH! You have probably been hacked." +
-					"Check your system security and try again")
 				return
 			}
 
@@ -55,7 +63,13 @@ func (i *ImgurAPI) WaitForAuth(stateStr string) (*oauth2.Token, error) {
 				RefreshToken: req.FormValue("refresh_token"),
 			}
 
-			_ = server.Shutdown(context.Background())
+			resp.WriteHeader(201)
+
+			// Shutdown soon
+			go func() {
+				time.Sleep(time.Second)
+				_ = server.Shutdown(context.Background())
+			}()
 		}
 	})
 
@@ -98,9 +112,11 @@ func (i *ImgurAPI) Authorize() error {
 
 	jsonData, _ := json.Marshal(token)
 
-	if err = ioutil.WriteFile("token.json", jsonData, 0440); err != nil {
+	if err = ioutil.WriteFile("token.json", jsonData, 0640); err != nil {
 		return fmt.Errorf("failed to write token json file: %s", err)
 	}
+
+	fmt.Println("Token received! ", token)
 
 	return nil
 }
