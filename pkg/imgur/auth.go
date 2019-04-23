@@ -15,7 +15,26 @@ import (
 	"time"
 )
 
-func (i *ImgurAPI) WaitForAuth(stateStr string) (*oauth2.Token, error) {
+func (i *ImgurAPI) AuthFromWeb() (*oauth2.Token, error) {
+
+	// Generate a random string for the state value
+	// Prevents XSS
+	randBytes := make([]byte, 24)
+	if _, err := rand.Read(randBytes); err != nil {
+		return nil, err
+	}
+	stateStr := hex.EncodeToString(randBytes)
+
+	// Open the provider auth page
+	url := i.authConfig.AuthCodeURL(stateStr, oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("response_type", "token"))
+	if err := browser.OpenURL(url); err != nil {
+		fmt.Println("Open this URL to authorise the app: ", url)
+	} else {
+		fmt.Println("Authorisation page opened. Check your browser.")
+	}
+
+	// Start a HTTP server to handle the oauth response from the client browser
 	server := &http.Server{Addr: ":8099"}
 
 	// Decode CallbackPage
@@ -80,7 +99,24 @@ func (i *ImgurAPI) WaitForAuth(stateStr string) (*oauth2.Token, error) {
 	return token, nil
 }
 
-func (i *ImgurAPI) Authorize() error {
+func (i *ImgurAPI) AuthFromFile(tokenFile string) (token *oauth2.Token, err error) {
+	token = &oauth2.Token{}
+
+	// Try reading the token from the file
+	tokenData, err := ioutil.ReadFile(tokenFile)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(tokenData, token)
+	return
+}
+
+func (i *ImgurAPI) SaveAuth(tokenFile string, token *oauth2.Token) error {
+	jsonData, _ := json.Marshal(token)
+	return ioutil.WriteFile(tokenFile, jsonData, 0640)
+}
+
+func (i *ImgurAPI) Authorize(tokenFile string) error {
 	i.authConfig = &oauth2.Config{
 		ClientID:     "825af7b91a9dfbf",
 		ClientSecret: ClientSecret,
@@ -91,32 +127,29 @@ func (i *ImgurAPI) Authorize() error {
 		},
 	}
 
-	randBytes := make([]byte, 24)
-	if _, err := rand.Read(randBytes); err != nil {
-		return err
-	}
-	stateStr := hex.EncodeToString(randBytes)
+	var token *oauth2.Token
 
-	url := i.authConfig.AuthCodeURL(stateStr, oauth2.AccessTypeOffline,
-		oauth2.SetAuthURLParam("response_type", "token"))
-	if err := browser.OpenURL(url); err != nil {
-		fmt.Println("Open this URL to authorise the app: ", url)
-	}
-	fmt.Println("Authorisation page opened. Check your browser.")
+	token, err := i.AuthFromFile(tokenFile)
 
-	token, err := i.WaitForAuth(stateStr)
+	// Don't complain, just do web auth
+	if err != nil {
+		err = nil
+		token, err = i.AuthFromWeb()
+	}
 
 	if err != nil {
 		return fmt.Errorf("failed to read authorisation token: %s", err)
 	}
 
-	jsonData, _ := json.Marshal(token)
+	// Set up authenticated http client
+	i.client = i.authConfig.Client(context.Background(), token)
 
-	if err = ioutil.WriteFile("token.json", jsonData, 0640); err != nil {
-		return fmt.Errorf("failed to write token json file: %s", err)
+	// Save the token
+	if err = i.SaveAuth(tokenFile, token); err != nil {
+		return fmt.Errorf("failed to save auth data: %s", err)
 	}
 
-	fmt.Println("Token received! ", token)
+	fmt.Println("Token received!")
 
 	return nil
 }
