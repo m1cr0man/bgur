@@ -200,6 +200,11 @@ func (a *App) PickImage(expiry time.Duration, minRatio, maxRatio int) (imgur.Ima
 
 		newImage := a.images[currentImage]
 
+		// Check image MIME and skip animated images
+		if newImage.Animated || !strings.Contains(newImage.Type, "image") {
+			continue
+		}
+
 		// Check ratio, skip to next image if wrong
 		if (minRatio > 0 && newImage.Ratio() < minRatio) || (maxRatio > 0 && newImage.Ratio() > maxRatio) {
 			continue
