@@ -6,19 +6,33 @@ import (
 	oa2 "github.com/m1cr0man/bgur/pkg/oauth2"
 	"golang.org/x/oauth2"
 	"io/ioutil"
+	"net/http"
 )
 
 type API struct {
 	*oa2.API
+	unauthedClient *http.Client
 }
 
-func (i *API) get(url string) (body []byte, err error) {
-	res, err := i.API.Client.Get(url)
-	if err != nil {
+func getProcessor(res *http.Response, olderr error) (body []byte, err error) {
+	if olderr != nil {
+		return
+	}
+
+	if res.StatusCode > 299 {
+		err = fmt.Errorf("failed to get %s. Status code %d", res.Request.URL, res.StatusCode)
 		return
 	}
 
 	return ioutil.ReadAll(res.Body)
+}
+
+func (i *API) get(url string) (body []byte, err error) {
+	return getProcessor(i.API.Client.Get(url))
+}
+
+func (i *API) getUnauthed(url string) (body []byte, err error) {
+	return getProcessor(i.unauthedClient.Get(url))
 }
 
 func (i *API) Authorise(tokenFile string) error {
@@ -112,11 +126,17 @@ func (i *API) GetFolderImages(folderOwner string, folderId int) (images []Image,
 }
 
 func (i *API) DownloadImage(image Image) (data []byte, err error) {
-	return i.get(image.Link)
+	// Imgur actually dislikes Bearer auth on some images
+	data, err = i.getUnauthed(image.Link)
+	if err != nil {
+		data, err = i.get(image.Link)
+	}
+	return data, err
 }
 
 func NewAPI(authUrl string) *API {
 	return &API{
-		API: oa2.NewAPI(authUrl),
+		API:            oa2.NewAPI(authUrl),
+		unauthedClient: &http.Client{},
 	}
 }
