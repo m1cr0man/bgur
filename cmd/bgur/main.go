@@ -2,10 +2,10 @@ package main
 
 import (
 	"bgur/pkg/bgur"
-	"bgur/pkg/desktop"
 	"flag"
 	"fmt"
 	"github.com/kirsle/configdir"
+	"github.com/reujab/wallpaper"
 	"os"
 	"time"
 )
@@ -80,7 +80,7 @@ func main() {
 		fmt.Println("Failed to download image: ", err)
 	}
 
-	err = desktop.SetBackground(imagePath)
+	err = wallpaper.SetFromFile(imagePath)
 	if err != nil {
 		fmt.Println("Failed to set desktop background: ", err)
 	}
