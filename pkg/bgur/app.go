@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/m1cr0man/bgur/pkg/imgur"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ type State struct {
 	CurrentImage   int    `json:"current_image"`
 	CacheTimestamp string `json:"cache_timestamp"`
 	DateChanged    string `json:"date_changed"`
+	Seed           int64  `json:"seed"`
 }
 
 type App struct {
@@ -36,6 +38,7 @@ type App struct {
 	currentImage   int
 	cacheTimestamp time.Time
 	dateChanged    time.Time
+	seed           int64
 }
 
 func (a *App) cacheFile() string {
@@ -105,6 +108,7 @@ func (a *App) SaveState() error {
 		CurrentImage:   a.currentImage,
 		CacheTimestamp: a.cacheTimestamp.Format(TimeFormat),
 		DateChanged:    a.dateChanged.Format(TimeFormat),
+		Seed:           a.seed,
 	})
 }
 
@@ -130,6 +134,7 @@ func (a *App) LoadState() error {
 		return err
 	}
 	a.currentImage = state.CurrentImage
+	a.seed = state.Seed
 	return nil
 }
 
@@ -144,7 +149,10 @@ func (a *App) LoadImages() (err error) {
 	// Any errors with the cache can be ignored, we can rebuild it
 	if err != nil || err2 != nil || expired {
 		newImages, err = a.api.GetFolderImages(a.folderOwner, a.folderId)
-		Randomise(newImages)
+		if a.seed > 0 {
+			rand.Seed(a.seed)
+			Randomise(newImages)
+		}
 		if err != nil {
 			return err
 		}
@@ -236,6 +244,14 @@ func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
 
 	err = ioutil.WriteFile(imgPath, imgData, 0644)
 	return
+}
+
+func (a *App) SetSeed(seed int64) {
+	// If we've already generated a random seed don't change it
+	if seed == -1 && a.seed < 1 {
+		seed = time.Now().Unix()
+	}
+	a.seed = seed
 }
 
 func NewApp(configDir, cacheDir string, cacheTime time.Duration) *App {

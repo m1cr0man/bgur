@@ -27,6 +27,8 @@ func main() {
 		"Minimum ratio of width:height, in percent. For example 160 which is 16:10")
 	maxRatio := flag.Int("max-ratio", 0,
 		"Maximum ratio of width:height, in percent. Use this for vertical screens, overrides minRatio")
+	seed := flag.Int64("seed", time.Now().Unix(),
+		"Seed to use for shuffling the folder. Set to 0 to skip shuffling")
 	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
@@ -77,6 +79,9 @@ func main() {
 		os.Exit(1)
 		return
 	}
+
+	// After LoadState so that old seed is loaded, incase seed == -1
+	app.SetSeed(*seed)
 
 	fmt.Println("Loading available images")
 	if err = app.LoadImages(); err != nil {
