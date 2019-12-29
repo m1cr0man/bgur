@@ -101,18 +101,18 @@ func (i *API) AuthFromWeb() (*oauth2.Token, error) {
 	return &token, nil
 }
 
-func (i *API) AuthFromFile(tokenFile string) (token *TokenWithUsername, err error) {
+func (i *API) AuthFromFile(tokenFile string) (token TokenWithUsername, err error) {
 
 	// Try reading the token from the file
 	tokenData, err := ioutil.ReadFile(tokenFile)
 	if err != nil {
 		return
 	}
-	err = json.Unmarshal(tokenData, token)
+	err = json.Unmarshal(tokenData, &token)
 	return
 }
 
-func (i *API) SaveAuth(tokenFile string, token *TokenWithUsername) error {
+func (i *API) SaveAuth(tokenFile string, token TokenWithUsername) error {
 	jsonData, _ := json.Marshal(token)
 	return ioutil.WriteFile(tokenFile, jsonData, 0640)
 }
@@ -121,7 +121,7 @@ func (i *API) SetConfig(config *oauth2.Config) {
 	i.authConfig = config
 }
 
-func (i *API) Authorize(tokenFile string) error {
+func (i *API) Authorise(tokenFile string) error {
 	token, err := i.AuthFromFile(tokenFile)
 
 	// Don't complain, just do web auth
@@ -132,7 +132,7 @@ func (i *API) Authorize(tokenFile string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get authorisation token from Imgur: %s", err)
 		}
-		token = &TokenWithUsername{
+		token = TokenWithUsername{
 			newToken,
 			"",
 		}
