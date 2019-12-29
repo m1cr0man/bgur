@@ -41,6 +41,10 @@ type Image struct {
 	ParentName string
 }
 
+func (i *Image) Ratio() int {
+	return (i.Width / i.Height) * 100
+}
+
 type Album struct {
 	Item
 	Cover       string  `json:"cover"`

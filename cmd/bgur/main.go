@@ -17,6 +17,16 @@ func main() {
 		"Name of the folder to pull desktop backgrounds from")
 	folderOwner := flag.String("folder-owner", "",
 		"Username who owns the backgrounds folder. Defaults to you")
+	expiry := flag.Int("change-interval", 60*12,
+		"Minutes between background changes. Default is 12 hours")
+	force := flag.Bool("force-change", false,
+		"Force a background change now. Overrides expiry")
+	refreshCache := flag.Bool("refresh-cache", false,
+		"Refresh list of images from the folder on Imgur")
+	minRatio := flag.Int("min-ratio", 0,
+		"Minimum ratio of width:height, in percent. For example 160 which is 16:10")
+	maxRatio := flag.Int("max-ratio", 0,
+		"Maximum ratio of width:height, in percent. Use this for vertical screens, overrides minRatio")
 	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
@@ -36,7 +46,14 @@ func main() {
 	}
 
 	shutdownChan := make(chan error)
-	app := bgur.NewApp(configDir, cacheDir)
+
+	// Set cache time to 7 days, or refresh now if specified
+	cacheTime := time.Hour * 24 * 7
+	if *refreshCache {
+		cacheTime = 0
+	}
+
+	app := bgur.NewApp(configDir, cacheDir, cacheTime)
 	go app.RunServer(shutdownChan)
 
 	if err = app.Authorise(); err != nil {
@@ -61,8 +78,6 @@ func main() {
 		return
 	}
 
-	// TODO stop here if image is already downloaded? and skip auth?
-
 	fmt.Println("Loading available images")
 	if err = app.LoadImages(); err != nil {
 		fmt.Println("Failed to load images: ", err)
@@ -71,9 +86,16 @@ func main() {
 	}
 
 	fmt.Println("Picking an image and setting the background")
-	// TODO Arg for expiry + force argument
-	// TODO filters (aspect ratio)
-	image := app.PickImage(time.Hour * 24)
+	if *force {
+		*expiry = 0
+	}
+	image, err := app.PickImage(time.Minute*time.Duration(*expiry), *minRatio, *maxRatio)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+		return
+	}
+	fmt.Println("Using", image.Link, "as desktop background")
 
 	imagePath, err := app.DownloadImage(image)
 	if err != nil {

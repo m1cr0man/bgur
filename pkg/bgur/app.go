@@ -16,7 +16,6 @@ import (
 // These are hard coded on the Imgur app auth page
 const AuthPort = 8099
 const AuthUrl = "/oauthcallback"
-const CacheTime = time.Hour * 24
 const TimeFormat = time.RFC3339
 
 type State struct {
@@ -28,6 +27,7 @@ type State struct {
 type App struct {
 	ConfigDir      string
 	CacheDir       string
+	CacheTime      time.Duration
 	folderOwner    string
 	folderId       int
 	api            *imgur.API
@@ -139,7 +139,7 @@ func (a *App) LoadImages() (err error) {
 	// Try loading the folder cache
 	data, err := ioutil.ReadFile(a.cacheFile())
 	err2 := json.Unmarshal(data, &a.images)
-	expired := a.cacheTimestamp.Add(CacheTime).Before(time.Now())
+	expired := a.cacheTimestamp.Add(a.CacheTime).Before(time.Now())
 
 	// Any errors with the cache can be ignored, we can rebuild it
 	if err != nil || err2 != nil || expired {
@@ -182,24 +182,37 @@ func (a *App) LoadImages() (err error) {
 	return
 }
 
-func (a *App) PickImage(expiry time.Duration) imgur.Image {
+func (a *App) PickImage(expiry time.Duration, minRatio, maxRatio int) (imgur.Image, error) {
 
 	// Select currentImage if it has not expired
 	currentImage := a.currentImage
 	if a.dateChanged.Add(expiry).After(time.Now()) {
-		return a.images[currentImage]
+		return a.images[currentImage], nil
 	}
 
-	// Increment currentImage
-	currentImage++
-	if currentImage == len(a.images) {
-		currentImage = 0
+	// Loop until an appropriate image is found
+	for i := 0; i < len(a.images); i++ {
+		// Increment currentImage
+		currentImage++
+		if currentImage == len(a.images) {
+			currentImage = 0
+		}
+
+		newImage := a.images[currentImage]
+
+		// Check ratio, skip to next image if wrong
+		if (minRatio > 0 && newImage.Ratio() < minRatio) || (maxRatio > 0 && newImage.Ratio() > maxRatio) {
+			continue
+		}
+
+		// Select new image
+		a.currentImage = currentImage
+		a.dateChanged = time.Now()
+		return newImage, nil
 	}
 
-	// Select new image
-	a.currentImage = currentImage
-	a.dateChanged = time.Now()
-	return a.images[currentImage]
+	// If the loop exits, then no images matched the filter. Return the remaining currentImage
+	return a.images[currentImage], fmt.Errorf("No new image found. Perhaps filters are too strict?")
 }
 
 func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
@@ -220,10 +233,11 @@ func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
 	return
 }
 
-func NewApp(configDir, cacheDir string) *App {
+func NewApp(configDir, cacheDir string, cacheTime time.Duration) *App {
 	return &App{
 		ConfigDir: configDir,
 		CacheDir:  cacheDir,
+		CacheTime: cacheTime,
 		server:    &http.Server{Addr: fmt.Sprintf(":%d", AuthPort)},
 		api:       imgur.NewAPI(AuthUrl),
 	}
