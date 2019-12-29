@@ -28,6 +28,7 @@ type State struct {
 type App struct {
 	ConfigDir      string
 	CacheDir       string
+	folderOwner    string
 	folderId       int
 	api            *imgur.API
 	server         *http.Server
@@ -38,15 +39,19 @@ type App struct {
 }
 
 func (a *App) cacheFile() string {
-	return filepath.Join(a.CacheDir, fmt.Sprintf("cache.%d.json", a.folderId))
+	return filepath.Join(a.CacheDir, fmt.Sprintf("cache.%s.%d.json", a.folderOwner, a.folderId))
 }
 
 func (a *App) stateFile() string {
-	return filepath.Join(a.ConfigDir, fmt.Sprintf("state.%d.json", a.folderId))
+	return filepath.Join(a.ConfigDir, fmt.Sprintf("state.%s.%d.json", a.folderOwner, a.folderId))
 }
 
 func (a *App) imageFile(image imgur.Image) string {
 	return filepath.Join(a.CacheDir, filepath.Base(image.Link))
+}
+
+func (a *App) AuthorisedUsername() string {
+	return a.api.Username
 }
 
 func (a *App) RunServer(shutdownChan chan error) {
@@ -62,8 +67,8 @@ func (a *App) Authorise() error {
 	return a.api.Authorise(authFile)
 }
 
-func (a *App) SelectFolder(folderName string) error {
-	folders, err := a.api.GetFolders()
+func (a *App) SelectFolder(folderOwner, folderName string) error {
+	folders, err := a.api.GetFolders(folderOwner)
 	if err != nil {
 		return err
 	}
@@ -71,6 +76,7 @@ func (a *App) SelectFolder(folderName string) error {
 	for _, folder := range folders {
 		if strings.ToLower(folder.Name) == strings.ToLower(folderName) {
 			a.folderId = folder.Id
+			a.folderOwner = folderOwner
 			return nil
 		}
 	}
@@ -105,8 +111,7 @@ func (a *App) SaveState() error {
 func (a *App) LoadState() error {
 	// Try loading the state file
 	// Support different folders on the same machine
-	stateFile := fmt.Sprintf("%s%cstate.%d.json", a.ConfigDir, os.PathSeparator, a.folderId)
-	data, err := ioutil.ReadFile(stateFile)
+	data, err := ioutil.ReadFile(a.stateFile())
 	var state State
 	if err == nil {
 		err = json.Unmarshal(data, &state)
@@ -138,7 +143,7 @@ func (a *App) LoadImages() (err error) {
 
 	// Any errors with the cache can be ignored, we can rebuild it
 	if err != nil || err2 != nil || expired {
-		newImages, err = a.api.GetFolderImages(a.folderId)
+		newImages, err = a.api.GetFolderImages(a.folderOwner, a.folderId)
 		Randomise(newImages)
 		if err != nil {
 			return err

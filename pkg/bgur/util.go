@@ -27,6 +27,7 @@ func DiffImages(sliceA, sliceB []imgur.Image) ([]imgur.Image, []imgur.Image) {
 	return simpleDiff(sliceA, sliceB), simpleDiff(sliceB, sliceA)
 }
 
+// TODO specify seed, save it to imgur
 func Randomise(images []imgur.Image) {
 	rand.Seed(time.Now().Unix())
 	rand.Shuffle(len(images), func(i, j int) { images[i], images[j] = images[j], images[i] })

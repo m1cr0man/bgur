@@ -15,6 +15,9 @@ func main() {
 
 	folderName := flag.String("folder-name", "desktop backgrounds",
 		"Name of the folder to pull desktop backgrounds from")
+	folderOwner := flag.String("folder-owner", "",
+		"Username who owns the backgrounds folder. Defaults to you")
+	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
 	err = configdir.MakePath(configDir) // Ensure it exists.
@@ -42,7 +45,11 @@ func main() {
 		return
 	}
 
-	if err = app.SelectFolder(*folderName); err != nil {
+	if *folderOwner == "" {
+		*folderOwner = app.AuthorisedUsername()
+	}
+
+	if err = app.SelectFolder(*folderOwner, *folderName); err != nil {
 		fmt.Println("Failed to select folder: ", err)
 		os.Exit(1)
 		return
@@ -54,6 +61,8 @@ func main() {
 		return
 	}
 
+	// TODO stop here if image is already downloaded? and skip auth?
+
 	fmt.Println("Loading available images")
 	if err = app.LoadImages(); err != nil {
 		fmt.Println("Failed to load images: ", err)
@@ -63,6 +72,7 @@ func main() {
 
 	fmt.Println("Picking an image and setting the background")
 	// TODO Arg for expiry + force argument
+	// TODO filters (aspect ratio)
 	image := app.PickImage(time.Hour * 24)
 
 	imagePath, err := app.DownloadImage(image)

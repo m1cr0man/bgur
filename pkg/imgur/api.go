@@ -34,8 +34,8 @@ func (i *API) Authorise(tokenFile string) error {
 	return i.API.Authorise(tokenFile)
 }
 
-func (i *API) GetFolders() (folders []Folder, err error) {
-	body, err := i.get("https://api.imgur.com/3/folders")
+func (i *API) GetFolders(folderOwner string) (folders []Folder, err error) {
+	body, err := i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/folders", folderOwner))
 	if err != nil {
 		return
 	}
@@ -66,8 +66,9 @@ func (i *API) GetAlbumImages(albumId string) (images []Image, err error) {
 	return
 }
 
-func (i *API) GetFolderImages(folderId int) (images []Image, err error) {
-	body, err := i.get(fmt.Sprintf("https://api.imgur.com/3/folders/%d/favorites", folderId))
+func (i *API) GetFolderImages(folderOwner string, folderId int) (images []Image, err error) {
+	body, err := i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/folders/%d/favorites",
+		folderOwner, folderId))
 	if err != nil {
 		return
 	}

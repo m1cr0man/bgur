@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/browser"
 	"golang.org/x/oauth2"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -145,7 +144,7 @@ func (i *API) Authorise(tokenFile string) error {
 	source := i.authConfig.TokenSource(context.Background(), token.Token)
 	newToken, err := source.Token()
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	token.Token = newToken
 
