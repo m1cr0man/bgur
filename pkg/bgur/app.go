@@ -1,10 +1,10 @@
 package bgur
 
 import (
-	"bgur/pkg/imgur"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/m1cr0man/bgur/pkg/imgur"
 	"io/ioutil"
 	"net/http"
 	"os"

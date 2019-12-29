@@ -1,9 +1,9 @@
 package imgur
 
 import (
-	oa2 "bgur/pkg/oauth2"
 	"encoding/json"
 	"fmt"
+	oa2 "github.com/m1cr0man/bgur/pkg/oauth2"
 	"golang.org/x/oauth2"
 	"io/ioutil"
 )

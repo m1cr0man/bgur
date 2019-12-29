@@ -1,10 +1,10 @@
 package main
 
 import (
-	"bgur/pkg/bgur"
 	"flag"
 	"fmt"
 	"github.com/kirsle/configdir"
+	"github.com/m1cr0man/bgur/pkg/bgur"
 	"github.com/reujab/wallpaper"
 	"os"
 	"time"

@@ -1,7 +1,7 @@
 package bgur
 
 import (
-	"bgur/pkg/imgur"
+	"github.com/m1cr0man/bgur/pkg/imgur"
 	"math/rand"
 	"time"
 )

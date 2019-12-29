@@ -1,4 +1,4 @@
-module bgur
+module github.com/m1cr0man/bgur
 
 go 1.12
 
