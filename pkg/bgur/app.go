@@ -202,9 +202,8 @@ func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
 func (a *App) SetSeed(seed int64) {
 	// If we've already generated a random seed don't change it
 	if seed == -1 && a.seed < 1 {
-		seed = time.Now().Unix()
+		a.seed = seed
 	}
-	a.seed = seed
 }
 
 func NewApp(configDir, cacheDir string, cacheTime time.Duration, sync bool) *App {
