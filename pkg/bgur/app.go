@@ -17,36 +17,24 @@ import (
 // These are hard coded on the Imgur app auth page
 const AuthPort = 8099
 const AuthUrl = "/oauthcallback"
-const TimeFormat = time.RFC3339
-
-type State struct {
-	CurrentImage   int    `json:"current_image"`
-	CacheTimestamp string `json:"cache_timestamp"`
-	DateChanged    string `json:"date_changed"`
-	Seed           int64  `json:"seed"`
-}
 
 type App struct {
-	ConfigDir      string
-	CacheDir       string
-	CacheTime      time.Duration
-	folderOwner    string
-	folderId       int
-	api            *imgur.API
-	server         *http.Server
-	images         []imgur.Image
-	currentImage   int
-	cacheTimestamp time.Time
-	dateChanged    time.Time
-	seed           int64
+	parsedState
+	ConfigDir   string
+	CacheDir    string
+	CacheTime   time.Duration
+	Sync        bool
+	folderOwner string
+	folderId    int
+	api         *imgur.API
+	server      *http.Server
+	images      []imgur.Image
+	stateAlbum  imgur.Album
+	stateImage  imgur.Image
 }
 
 func (a *App) cacheFile() string {
 	return filepath.Join(a.CacheDir, fmt.Sprintf("cache.%s.%d.json", a.folderOwner, a.folderId))
-}
-
-func (a *App) stateFile() string {
-	return filepath.Join(a.ConfigDir, fmt.Sprintf("state.%s.%d.json", a.folderOwner, a.folderId))
 }
 
 func (a *App) imageFile(image imgur.Image) string {
@@ -101,41 +89,6 @@ func (a *App) saveJSON(filePath string, data interface{}) error {
 
 func (a *App) SaveImages() error {
 	return a.saveJSON(a.cacheFile(), a.images)
-}
-
-func (a *App) SaveState() error {
-	return a.saveJSON(a.stateFile(), State{
-		CurrentImage:   a.currentImage,
-		CacheTimestamp: a.cacheTimestamp.Format(TimeFormat),
-		DateChanged:    a.dateChanged.Format(TimeFormat),
-		Seed:           a.seed,
-	})
-}
-
-func (a *App) LoadState() error {
-	// Try loading the state file
-	// Support different folders on the same machine
-	data, err := ioutil.ReadFile(a.stateFile())
-	var state State
-	if err == nil {
-		err = json.Unmarshal(data, &state)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Copy values into struct and parse them
-	a.dateChanged, err = time.Parse(TimeFormat, state.DateChanged)
-	if err != nil && state.DateChanged != "" {
-		return err
-	}
-	a.cacheTimestamp, err = time.Parse(TimeFormat, state.CacheTimestamp)
-	if err != nil && state.CacheTimestamp != "" {
-		return err
-	}
-	a.currentImage = state.CurrentImage
-	a.seed = state.Seed
-	return nil
 }
 
 func (a *App) LoadImages() (err error) {
@@ -225,7 +178,7 @@ func (a *App) PickImage(expiry time.Duration, minRatio, maxRatio int) (imgur.Ima
 	}
 
 	// If the loop exits, then no images matched the filter. Return the remaining currentImage
-	return a.images[currentImage], fmt.Errorf("No new image found. Perhaps filters are too strict?")
+	return a.images[currentImage], fmt.Errorf("no new image found. Perhaps filters are too strict")
 }
 
 func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
@@ -236,7 +189,7 @@ func (a *App) DownloadImage(image imgur.Image) (imgPath string, err error) {
 		return
 	}
 
-	imgData, err := a.api.DownloadImage(image)
+	imgData, err := a.api.DownloadImage(image.Link)
 
 	if err != nil {
 		return
@@ -254,11 +207,12 @@ func (a *App) SetSeed(seed int64) {
 	a.seed = seed
 }
 
-func NewApp(configDir, cacheDir string, cacheTime time.Duration) *App {
+func NewApp(configDir, cacheDir string, cacheTime time.Duration, sync bool) *App {
 	return &App{
 		ConfigDir: configDir,
 		CacheDir:  cacheDir,
 		CacheTime: cacheTime,
+		Sync:      sync,
 		server:    &http.Server{Addr: fmt.Sprintf(":%d", AuthPort)},
 		api:       imgur.NewAPI(AuthUrl),
 	}

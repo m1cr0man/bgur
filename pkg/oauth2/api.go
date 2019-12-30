@@ -124,7 +124,7 @@ func (i *API) Authorise(tokenFile string) error {
 	token, err := i.AuthFromFile(tokenFile)
 
 	// Don't complain, just do web auth
-	if err != nil || !token.Token.Valid() {
+	if err != nil || token.Token == nil || token.Token.AccessToken == "" {
 		err = nil
 		newToken, err := i.AuthFromWeb()
 

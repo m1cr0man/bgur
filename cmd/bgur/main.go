@@ -29,6 +29,8 @@ func main() {
 		"Maximum ratio of width:height, in percent. Use this for vertical screens, overrides minRatio")
 	seed := flag.Int64("seed", time.Now().Unix(),
 		"Seed to use for shuffling the folder. Set to 0 to skip shuffling")
+	sync := flag.Bool("sync", false,
+		"Sync state to Imgur so that the same backgrounds appear on other computers")
 	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
@@ -55,7 +57,7 @@ func main() {
 		cacheTime = 0
 	}
 
-	app := bgur.NewApp(configDir, cacheDir, cacheTime)
+	app := bgur.NewApp(configDir, cacheDir, cacheTime, *sync)
 	go app.RunServer(shutdownChan)
 
 	if err = app.Authorise(); err != nil {
@@ -74,6 +76,9 @@ func main() {
 		return
 	}
 
+	if *sync {
+		fmt.Println("Loading state and syncing with imgur")
+	}
 	if err = app.LoadState(); err != nil {
 		fmt.Println("Failed to load state: ", err)
 		os.Exit(1)
@@ -117,6 +122,9 @@ func main() {
 		fmt.Println("Failed to save cache of images: ", err, " This will slow down subsequent runs")
 	}
 
+	if *sync {
+		fmt.Println("Saving state to imgur")
+	}
 	if err = app.SaveState(); err != nil {
 		fmt.Println("Failed to save state: ", err)
 		os.Exit(1)

@@ -1,12 +1,14 @@
 package imgur
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	oa2 "github.com/m1cr0man/bgur/pkg/oauth2"
 	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 )
 
 type API struct {
@@ -14,31 +16,42 @@ type API struct {
 	unauthedClient *http.Client
 }
 
-func getProcessor(res *http.Response, olderr error) (body []byte, err error) {
+func responseProcessor(res *http.Response, olderr error) (body []byte, err error) {
 	if olderr != nil {
 		return
 	}
 
+	body, err = ioutil.ReadAll(res.Body)
 	if res.StatusCode > 299 {
-		err = fmt.Errorf("failed to get %s. Status code %d", res.Request.URL, res.StatusCode)
-		return
+		err = fmt.Errorf("failed to %s %s. Status code %d. Response: %s",
+			res.Request.Method, res.Request.URL, res.StatusCode, body)
 	}
-
-	return ioutil.ReadAll(res.Body)
+	return
 }
 
 func (i *API) get(url string) (body []byte, err error) {
-	return getProcessor(i.API.Client.Get(url))
+	return responseProcessor(i.API.Client.Get(url))
 }
 
 func (i *API) getUnauthed(url string) (body []byte, err error) {
-	return getProcessor(i.unauthedClient.Get(url))
+	return responseProcessor(i.unauthedClient.Get(url))
+}
+
+func (i *API) post(url string, data url.Values) (body []byte, err error) {
+	return responseProcessor(i.API.Client.PostForm(url, data))
+}
+
+func (i *API) delete(url string) (body []byte, err error) {
+	req, err := http.NewRequest(http.MethodDelete, url, &bytes.Buffer{})
+	if err != nil {
+		return
+	}
+	return responseProcessor(i.API.Client.Do(req))
 }
 
 func (i *API) Authorise(tokenFile string) error {
 	i.SetConfig(&oauth2.Config{
-		ClientID:     "825af7b91a9dfbf",
-		ClientSecret: ClientSecret,
+		ClientID: "825af7b91a9dfbf",
 		Endpoint: oauth2.Endpoint{
 			AuthURL:   "https://api.imgur.com/oauth2/authorize",
 			TokenURL:  "https://api.imgur.com/oauth2/token",
@@ -46,6 +59,93 @@ func (i *API) Authorise(tokenFile string) error {
 		},
 	})
 	return i.API.Authorise(tokenFile)
+}
+
+func (i *API) GetAlbums() (albums []Album, err error) {
+	body, err := i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/albums", i.API.Username))
+	if err != nil {
+		return
+	}
+
+	var response AlbumsResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return
+	}
+
+	albums = response.Data
+	return
+}
+
+func (i *API) CreateImage(name, title, description string, albumId string, imgBytes []byte) (image Image, err error) {
+	data := url.Values{}
+
+	// Tried using base64 encoded images, they didn't work
+	data.Set("name", name)
+	data.Set("title", title)
+	data.Set("description", description)
+	data.Set("image", string(imgBytes))
+	data.Set("type", "file")
+	if albumId != "" {
+		data.Set("album", albumId)
+	}
+
+	body, err := i.post("https://api.imgur.com/3/image", data)
+	if err != nil {
+		return
+	}
+
+	var response ImagePostResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return
+	}
+
+	image = response.Data
+	return
+}
+
+func (i *API) DeleteImage(imageId string) (err error) {
+	body, err := i.delete("https://api.imgur.com/3/image/" + imageId)
+	if err != nil {
+		return
+	}
+
+	var response APIResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return
+	}
+	if !response.Success {
+		return fmt.Errorf("failed to delete image. %v", response.Data)
+	}
+
+	return
+}
+
+func (i *API) CreateAlbum(title, description string, privacy Privacy, images []Image) (album Album, err error) {
+	data := url.Values{}
+
+	data.Set("title", title)
+	data.Set("description", description)
+	data.Set("privacy", string(privacy))
+	for _, image := range images {
+		data.Add("ids", image.Id)
+	}
+
+	body, err := i.post("https://api.imgur.com/3/album", data)
+	if err != nil {
+		return
+	}
+
+	var response AlbumPostResponse
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return
+	}
+
+	album = response.Data
+	return
 }
 
 func (i *API) GetFolders(folderOwner string) (folders []Folder, err error) {
@@ -125,11 +225,11 @@ func (i *API) GetFolderImages(folderOwner string, folderId int) (images []Image,
 	return
 }
 
-func (i *API) DownloadImage(image Image) (data []byte, err error) {
+func (i *API) DownloadImage(imageLink string) (data []byte, err error) {
 	// Imgur actually dislikes Bearer auth on some images
-	data, err = i.getUnauthed(image.Link)
+	data, err = i.getUnauthed(imageLink)
 	if err != nil {
-		data, err = i.get(image.Link)
+		data, err = i.get(imageLink)
 	}
 	return data, err
 }

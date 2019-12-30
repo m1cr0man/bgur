@@ -1,5 +1,12 @@
 package imgur
 
+type Privacy string
+
+const (
+	PrivacyPublic Privacy = "public"
+	PrivacyHidden Privacy = "hidden"
+)
+
 type BasicItem struct {
 	AccountId  int    `json:"account_id"`
 	AccountUrl string `json:"account_url"`
@@ -78,6 +85,21 @@ type APIResponse struct {
 	Data    interface{} `json:"data"`
 	Success bool        `json:"success"`
 	Status  int         `json:"status"`
+}
+
+type ImagePostResponse struct {
+	APIResponse
+	Data Image `json:"data"`
+}
+
+type AlbumsResponse struct {
+	APIResponse
+	Data []Album `json:"data"`
+}
+
+type AlbumPostResponse struct {
+	APIResponse
+	Data Album `json:"data"`
 }
 
 type FoldersResponse struct {
