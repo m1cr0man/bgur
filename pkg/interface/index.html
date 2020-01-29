@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bgur</title>
+    <link rel="stylesheet" type="text/css" href="./style.css" />
+</head>
+<body>
+    <header><h1>Bgur</h1></header>
+
+    <main>
+        <form id="settings" action="/settings">
+            <h2>Configuration</h2>
+
+            <label for="owner">Folder Owner</label>
+            <input id="owner" name="owner" type="text" />
+            <div class="break"></div>
+
+            <label for="name">Folder Name</label>
+            <input id="name" name="name" type="text" />
+            <div class="break"></div>
+
+            <label for="minratio">Min Ratio</label>
+            <input id="minratio" name="minratio" type="number" min="0" />
+            <div class="break"></div>
+
+            <label for="maxratio">Max Ratio</label>
+            <input id="maxratio" name="maxratio" type="number" min="0" />
+            <div class="break"></div>
+
+            <button formaction="submit">Submit</button>
+        </form>
+        <aside>
+            <h2>Current Background</h2>
+            <img src="/current" alt="current background"/>
+        </aside>
+    </main>
+</body>
+</html>

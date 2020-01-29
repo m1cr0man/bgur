@@ -1,0 +1,59 @@
+html, body {
+    width: 100%;
+    min-width: 600px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: white;
+    background-color: #141518;
+}
+
+header {
+    width: 80%;
+    padding: 3pt 10%;
+    background-color: #34373c;
+}
+
+header h1 {
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    width: 80%;
+    padding: 0 10%;
+    display: flex;
+}
+
+main > * {
+    padding: 1em 2em;
+    flex: 1 1 auto;
+}
+
+main h2 {
+    width: 100%;
+    padding: 3pt 0;
+    clear: none;
+}
+
+#settings {
+    display: flex;
+    flex-flow: row wrap;
+}
+
+main > * {
+    flex-basis: 24em;
+}
+
+#settings label, #settings input {
+    flex-basis: 8em;
+    margin-bottom: 0.5em;
+}
+
+#settings input {
+    height: 1.5em;
+}
+
+#settings .break {
+    flex-basis:  100%;
+}
