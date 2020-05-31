@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/kirsle/configdir"
 	"github.com/m1cr0man/bgur/pkg/bgur"
 	"github.com/reujab/wallpaper"
-	"os"
-	"time"
 )
 
 func main() {
@@ -31,6 +32,8 @@ func main() {
 		"Seed to use for shuffling the folder. Set to 0 to skip shuffling")
 	sync := flag.Bool("sync", false,
 		"Sync state to Imgur so that the same backgrounds appear on other computers")
+	favourites := flag.Bool("favourites", false,
+		"List favourites")
 	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
@@ -73,6 +76,17 @@ func main() {
 	if err = app.SelectFolder(*folderOwner, *folderName); err != nil {
 		fmt.Println("Failed to select folder: ", err)
 		os.Exit(1)
+		return
+	}
+
+	if *favourites {
+		err = app.DumpFavourites(*folderOwner)
+		if err != nil {
+			fmt.Println("Failed to dump favourites: ", err)
+			os.Exit(1)
+			return
+		}
+		os.Exit(0)
 		return
 	}
 

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	oa2 "github.com/m1cr0man/bgur/pkg/oauth2"
-	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	oa2 "github.com/m1cr0man/bgur/pkg/oauth2"
+	"golang.org/x/oauth2"
 )
 
 type API struct {
@@ -232,6 +233,31 @@ func (i *API) DownloadImage(imageLink string) (data []byte, err error) {
 		data, err = i.get(imageLink)
 	}
 	return data, err
+}
+
+func (i *API) GetFavourites(folderOwner string) (data []ImageOrAlbum, err error) {
+	var body []byte
+	var response FolderContentResponse
+	p := 0
+	for {
+		body, err = i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/favorites/%d", folderOwner, p))
+
+		if err != nil {
+			return
+		}
+
+		if err = json.Unmarshal(body, &response); err != nil {
+			return
+		}
+
+		if len(response.Data) == 0 {
+			return
+		}
+
+		data = append(data, response.Data...)
+		p++
+	}
+	return
 }
 
 func NewAPI(authUrl string) *API {

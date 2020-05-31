@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/m1cr0man/bgur/pkg/imgur"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/m1cr0man/bgur/pkg/imgur"
 )
 
 // These are hard coded on the Imgur app auth page
@@ -204,6 +205,18 @@ func (a *App) SetSeed(seed int64) {
 	if seed == -1 && a.seed < 1 {
 		a.seed = seed
 	}
+}
+
+func (a *App) DumpFavourites(folderOwner string) (err error) {
+	data, err := a.api.GetFavourites(folderOwner)
+	if err != nil {
+		return
+	}
+	js, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	return ioutil.WriteFile("favourites.json", js, 0440)
 }
 
 func NewApp(configDir, cacheDir string, cacheTime time.Duration, sync bool) *App {
