@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -217,6 +218,52 @@ func (a *App) DumpFavourites(folderOwner string) (err error) {
 		return
 	}
 	return ioutil.WriteFile("favourites.json", js, 0440)
+}
+
+func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
+	var f os.FileInfo
+	var files []os.FileInfo
+	var image imgur.Image
+	var images []imgur.Image
+	var content []byte
+	var sleepTime time.Duration = 1
+
+	files, err = ioutil.ReadDir(sourcePath)
+	if err != nil {
+		return
+	}
+	for _, f = range files {
+		if !f.IsDir() {
+			content, err = ioutil.ReadFile(path.Join(sourcePath, f.Name()))
+			fmt.Println("Uploading ", f.Name())
+			image, err = a.api.CreateImage(f.Name(), "", "Uploaded from bgur", "", content)
+			if err != nil {
+				if strings.Contains(err.Error(), "too fast") {
+					print("Getting rate limited! Sleeping longer between uploads")
+					sleepTime *= 2
+					if sleepTime > 5 {
+						sleepTime = 5
+					}
+					time.Sleep(time.Minute * sleepTime)
+					image, err = a.api.CreateImage(f.Name(), "", "Uploaded from bgur", "", content)
+					if err != nil {
+						return
+					}
+				} else {
+					return
+				}
+			}
+			images = append(images, image)
+			fmt.Printf("Uploaded %s to %s\n", f.Name(), image.Link)
+		}
+	}
+
+	album, err := a.api.CreateAlbum(albumName, "Uploaded from bgur", imgur.PrivacyHidden, images)
+	if err != nil {
+		return
+	}
+	fmt.Printf("Created album: %s\n", album.Link)
+	return
 }
 
 func NewApp(configDir, cacheDir string, cacheTime time.Duration, sync bool) *App {

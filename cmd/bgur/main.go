@@ -34,6 +34,8 @@ func main() {
 		"Sync state to Imgur so that the same backgrounds appear on other computers")
 	favourites := flag.Bool("favourites", false,
 		"List favourites")
+	albumName := flag.String("album-name", "",
+		"Album to create and upload images in current folder to")
 	flag.Parse()
 
 	configDir := configdir.LocalConfig("bgur")
@@ -83,6 +85,17 @@ func main() {
 		err = app.DumpFavourites(*folderOwner)
 		if err != nil {
 			fmt.Println("Failed to dump favourites: ", err)
+			os.Exit(1)
+			return
+		}
+		os.Exit(0)
+		return
+	}
+
+	if *albumName != "" {
+		err = app.UploadAllImages(".", *albumName)
+		if err != nil {
+			fmt.Println("Failed to upload images: ", err)
 			os.Exit(1)
 			return
 		}
