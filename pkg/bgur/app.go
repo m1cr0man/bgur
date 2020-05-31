@@ -39,6 +39,10 @@ func (a *App) cacheFile() string {
 	return filepath.Join(a.CacheDir, fmt.Sprintf("cache.%s.%d.json", a.folderOwner, a.folderId))
 }
 
+func (a *App) CountImages() int {
+	return len(a.images)
+}
+
 func (a *App) imageFile(image imgur.Image) string {
 	return filepath.Join(a.CacheDir, filepath.Base(image.Link))
 }
@@ -264,6 +268,10 @@ func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
 	}
 	fmt.Printf("Created album: %s\n", album.Link)
 	return
+}
+
+func (a *App) AddAlbumToFolder(albumId string) (err error) {
+	return a.api.AddAlbumToFolder(a.folderId, albumId)
 }
 
 func NewApp(configDir, cacheDir string, cacheTime time.Duration, sync bool) *App {

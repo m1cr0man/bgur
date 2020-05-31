@@ -34,6 +34,8 @@ func main() {
 		"Sync state to Imgur so that the same backgrounds appear on other computers")
 	favourites := flag.Bool("favourites", false,
 		"List favourites")
+	addAlbum := flag.String("add-album", "",
+		"Album ID to add to your backgrounds folder")
 	albumName := flag.String("album-name", "",
 		"Album to create and upload images in current folder to")
 	flag.Parse()
@@ -92,10 +94,22 @@ func main() {
 		return
 	}
 
+	if *addAlbum != "" {
+		err = app.AddAlbumToFolder(*addAlbum)
+		if err != nil {
+			fmt.Println("Failed to add album to favourites folder:", err)
+			os.Exit(1)
+			return
+		}
+		fmt.Println("Album added")
+		os.Exit(0)
+		return
+	}
+
 	if *albumName != "" {
 		err = app.UploadAllImages(".", *albumName)
 		if err != nil {
-			fmt.Println("Failed to upload images: ", err)
+			fmt.Println("Failed to upload images:", err)
 			os.Exit(1)
 			return
 		}
@@ -117,11 +131,12 @@ func main() {
 
 	fmt.Println("Loading available images")
 	if err = app.LoadImages(); err != nil {
-		fmt.Println("Failed to load images: ", err)
+		fmt.Println("Failed to load images:", err)
 		os.Exit(1)
 		return
 	}
 
+	fmt.Println("Loaded", app.CountImages(), "images")
 	fmt.Println("Picking an image and setting the background")
 	if *force {
 		*expiry = 0

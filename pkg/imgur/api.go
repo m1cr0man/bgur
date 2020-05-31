@@ -42,6 +42,14 @@ func (i *API) post(url string, data url.Values) (body []byte, err error) {
 	return responseProcessor(i.API.Client.PostForm(url, data))
 }
 
+func (i *API) put(url string) (body []byte, err error) {
+	req, err := http.NewRequest(http.MethodPut, url, &bytes.Buffer{})
+	if err != nil {
+		return
+	}
+	return responseProcessor(i.API.Client.Do(req))
+}
+
 func (i *API) delete(url string) (body []byte, err error) {
 	req, err := http.NewRequest(http.MethodDelete, url, &bytes.Buffer{})
 	if err != nil {
@@ -223,6 +231,12 @@ func (i *API) GetFolderImages(folderOwner string, folderId int) (images []Image,
 		}
 	}
 
+	return
+}
+
+func (i *API) AddAlbumToFolder(folderId int, albumId string) (err error) {
+	url := fmt.Sprintf("https://api.imgur.com/3/folders/%d/favorites/album/%s", folderId, albumId)
+	_, err = i.put(url)
 	return
 }
 
