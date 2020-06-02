@@ -117,13 +117,18 @@ func main() {
 		return
 	}
 
-	if *sync {
-		fmt.Println("Loading state and syncing with imgur")
-	}
 	if err = app.LoadState(); err != nil {
 		fmt.Println("Failed to load state: ", err)
-		os.Exit(1)
-		return
+	}
+	err = nil
+
+	if *sync {
+		fmt.Println("Syncing state with imgur")
+
+		if err = app.SyncState(); err != nil {
+			fmt.Println("Failed to sync state: ", err)
+		}
+		err = nil
 	}
 
 	// After LoadState so that old seed is loaded, incase seed == -1

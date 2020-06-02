@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/m1cr0man/bgur/pkg/imgur"
-	"github.com/makiuchi-d/gozxing"
-	"github.com/makiuchi-d/gozxing/qrcode"
 	imgLib "image"
 	_ "image/jpeg"
 	"image/png"
@@ -14,6 +11,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"time"
+
+	"github.com/m1cr0man/bgur/pkg/imgur"
+	"github.com/makiuchi-d/gozxing"
+	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
 const StateAlbumName = "Bgur Sync Data"
@@ -221,12 +222,13 @@ func (a *App) LoadState() (err error) {
 	data, err := ioutil.ReadFile(a.stateFile())
 	if err == nil {
 		a.parsedState, err = a.parseRawState(data)
-		if err != nil {
-			return
-		}
 	}
+	return
+}
 
+func (a *App) SyncState() (err error) {
 	// Sync with imgur
+	var data []byte
 	if a.Sync {
 		data, err = a.DownloadState()
 		if err != nil {
