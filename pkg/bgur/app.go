@@ -124,7 +124,11 @@ func (a *App) LoadImages() (err error) {
 	}
 
 	// If we have old images, preserve the list of seen images
-	if a.currentImage > 0 && expired {
+	// TODO what if 2 syncing machines update thier cache at the same time?
+	// There's no way to know if currentImage should be updated because we may
+	// be behind. Might need to store a tuple of (hash, pos) in the sync data.
+	// OR we denote position by the image id??
+	if a.currentImage > 0 && expired && len(a.images) > a.currentImage {
 
 		// Identify all the images we've seen before, preserve them in a separate list
 		seen := make(map[string]imgur.Image, a.currentImage)
