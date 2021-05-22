@@ -2,3 +2,4 @@ config.go
 .idea
 *.iml
 /bgur
+*.exe

@@ -30,6 +30,7 @@ type App struct {
 	folderId    int
 	api         *imgur.API
 	server      *http.Server
+	albums      []imgur.Album
 	images      []imgur.Image
 	stateAlbum  imgur.Album
 	stateImage  imgur.Image
@@ -82,7 +83,7 @@ func (a *App) SelectFolder(folderOwner, folderName string) error {
 	for i, folder := range folders {
 		options[i] = fmt.Sprintf("\t- %s", folder.Name)
 	}
-	return fmt.Errorf("could not find a folder called %s. Options:\n" + strings.Join(options, "\n"))
+	return fmt.Errorf("could not find a folder called %s. Options:\n"+strings.Join(options, "\n"), folderName)
 }
 
 func (a *App) saveJSON(filePath string, data interface{}) error {
@@ -150,6 +151,20 @@ func (a *App) LoadImages() (err error) {
 	}
 
 	a.images = newImages
+	return
+}
+
+func (a *App) LoadAlbums() (err error) {
+	if len(a.albums) > 0 {
+		return
+	}
+
+	albums, err := a.api.GetAlbums()
+	if err != nil {
+		return
+	}
+
+	a.albums = albums
 	return
 }
 
@@ -229,12 +244,46 @@ func (a *App) DumpFavourites(folderOwner string) (err error) {
 }
 
 func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
+	minWait := time.Second * 30
+	maxWait := time.Minute * 10
+	sleepTime := minWait
 	var f os.FileInfo
 	var files []os.FileInfo
 	var image imgur.Image
 	var images []imgur.Image
+	var existingImages []imgur.Image
 	var content []byte
-	var sleepTime time.Duration = 1
+	var album imgur.Album
+	var existingAlbum bool
+
+	// Make this idempotent. Load list of images from the album if it already exists
+	a.LoadAlbums()
+
+	for _, album = range a.albums {
+		if strings.ToLower(album.Title) == strings.ToLower(albumName) {
+			existingAlbum = true
+			break
+		}
+	}
+
+	if existingAlbum {
+		existingImages, err = a.api.GetAlbumImages(album.Id)
+		if err != nil {
+			return
+		}
+	} else {
+		// Create a new album if necessary
+		album, err = a.api.CreateAlbum(albumName, "Uploaded from bgur", imgur.PrivacyHidden, images)
+		if err != nil {
+			return
+		}
+		a.albums = append(a.albums, album)
+		fmt.Printf("Created album: %s\n", album.Link)
+		err = a.AddAlbumToFolder(album.Id)
+		if err != nil {
+			return
+		}
+	}
 
 	files, err = ioutil.ReadDir(sourcePath)
 	if err != nil {
@@ -242,35 +291,57 @@ func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
 	}
 	for _, f = range files {
 		if !f.IsDir() {
-			content, err = ioutil.ReadFile(path.Join(sourcePath, f.Name()))
-			fmt.Println("Uploading ", f.Name())
-			image, err = a.api.CreateImage(f.Name(), "", "Uploaded from bgur", "", content)
-			if err != nil {
-				if strings.Contains(err.Error(), "too fast") {
-					print("Getting rate limited! Sleeping longer between uploads")
-					sleepTime *= 2
-					if sleepTime > 5 {
-						sleepTime = 5
-					}
-					time.Sleep(time.Minute * sleepTime)
-					image, err = a.api.CreateImage(f.Name(), "", "Uploaded from bgur", "", content)
-					if err != nil {
-						return
-					}
-				} else {
-					return
+			fname := f.Name()
+
+			// Skip existing images
+			var found bool
+			for _, existingImage := range existingImages {
+				if strings.ToLower(fname) == strings.ToLower(existingImage.Name) {
+					found = true
+					break
 				}
 			}
+			if found {
+				continue
+			}
+
+			content, err = ioutil.ReadFile(path.Join(sourcePath, fname))
+			fmt.Println("Uploading ", fname)
+			for {
+				time.Sleep(sleepTime)
+				image, err = a.api.CreateImage(fname,
+					fname,
+					"Uploaded from bgur. Original date: "+f.ModTime().Format("Jan 2 15:04:05 2006"),
+					album.Id,
+					content,
+				)
+				if err != nil {
+					if strings.Contains(err.Error(), "too fast") {
+						sleepTime *= 2
+						if sleepTime > maxWait {
+							sleepTime = maxWait
+						}
+						fmt.Println(
+							"Getting rate limited! Sleeping",
+							sleepTime,
+							"between uploads",
+						)
+						fmt.Println(err.Error())
+						continue
+					}
+					return
+				}
+				sleepTime -= time.Minute
+				if sleepTime < minWait {
+					sleepTime = minWait
+				}
+				break
+			}
 			images = append(images, image)
-			fmt.Printf("Uploaded %s to %s\n", f.Name(), image.Link)
+			fmt.Printf("Uploaded %s to %s\n", fname, image.Link)
 		}
 	}
 
-	album, err := a.api.CreateAlbum(albumName, "Uploaded from bgur", imgur.PrivacyHidden, images)
-	if err != nil {
-		return
-	}
-	fmt.Printf("Created album: %s\n", album.Link)
 	return
 }
 

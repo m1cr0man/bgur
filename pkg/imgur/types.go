@@ -44,6 +44,7 @@ type Image struct {
 	Type       string `json:"type"`
 	Width      int    `json:"width"`
 	Link       string `json:"link"`
+	Name       string `json:"name"`
 	ParentId   string
 	ParentName string
 }
