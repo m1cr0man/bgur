@@ -76,19 +76,27 @@ func (i *API) Authorise(tokenFile string) error {
 }
 
 func (i *API) GetAlbums() (albums []Album, err error) {
-	body, err := i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/albums", i.API.Username))
-	if err != nil {
-		return
-	}
-
+	var body []byte
 	var response AlbumsResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return
-	}
+	p := 0
+	for {
+		body, err = i.get(fmt.Sprintf("https://api.imgur.com/3/account/%s/albums/%d", i.API.Username, p))
 
-	albums = response.Data
-	return
+		if err != nil {
+			return
+		}
+
+		if err = json.Unmarshal(body, &response); err != nil {
+			return
+		}
+
+		if len(response.Data) == 0 {
+			return
+		}
+
+		albums = append(albums, response.Data...)
+		p++
+	}
 }
 
 func (i *API) CreateImage(name, title, description string, albumId string, imgBytes []byte) (image Image, err error) {
@@ -116,6 +124,17 @@ func (i *API) CreateImage(name, title, description string, albumId string, imgBy
 	}
 
 	image = response.Data
+	return
+}
+
+func (i *API) UpdateImage(id, title, description string) (err error) {
+	data := url.Values{}
+
+	// Tried using base64 encoded images, they didn't work
+	data.Set("title", title)
+	data.Set("description", description)
+
+	_, err = i.post("https://api.imgur.com/3/image/"+id, data)
 	return
 }
 
@@ -276,7 +295,6 @@ func (i *API) GetFavourites(folderOwner string) (data []ImageOrAlbum, err error)
 		data = append(data, response.Data...)
 		p++
 	}
-	return
 }
 
 func NewAPI(authUrl string) *API {

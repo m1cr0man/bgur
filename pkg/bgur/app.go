@@ -250,6 +250,7 @@ func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
 	var f os.FileInfo
 	var files []os.FileInfo
 	var image imgur.Image
+	var existingImage imgur.Image
 	var images []imgur.Image
 	var existingImages []imgur.Image
 	var content []byte
@@ -292,29 +293,42 @@ func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
 	for _, f = range files {
 		if !f.IsDir() {
 			fname := f.Name()
+			title := fname
+			description := "Uploaded from bgur. Original date: " + f.ModTime().Format("Jan 2 15:04:05 2006")
 
 			// Skip existing images
 			var found bool
-			for _, existingImage := range existingImages {
-				if strings.ToLower(fname) == strings.ToLower(existingImage.Name) {
+			for _, existingImage = range existingImages {
+				ename := strings.ToLower(existingImage.Name)
+				extStart := strings.LastIndex(fname, ".")
+				if strings.ToLower(fname) == ename || strings.ToLower(fname[:extStart]) == ename {
 					found = true
 					break
 				}
 			}
-			if found {
+
+			// Found + no update necessary
+			if found && existingImage.Title != "" {
 				continue
 			}
 
 			content, err = ioutil.ReadFile(path.Join(sourcePath, fname))
-			fmt.Println("Uploading ", fname)
 			for {
-				time.Sleep(sleepTime)
-				image, err = a.api.CreateImage(fname,
-					fname,
-					"Uploaded from bgur. Original date: "+f.ModTime().Format("Jan 2 15:04:05 2006"),
-					album.Id,
-					content,
-				)
+				if found {
+					fmt.Println("Updating info for", fname)
+					err = a.api.UpdateImage(existingImage.Id, title, description)
+					time.Sleep(sleepTime / 60)
+				} else {
+					fmt.Println("Uploading ", fname)
+					time.Sleep(sleepTime)
+					image, err = a.api.CreateImage(
+						fname,
+						title,
+						description,
+						album.Id,
+						content,
+					)
+				}
 				if err != nil {
 					if strings.Contains(err.Error(), "too fast") {
 						sleepTime *= 2
@@ -337,8 +351,10 @@ func (a *App) UploadAllImages(sourcePath, albumName string) (err error) {
 				}
 				break
 			}
-			images = append(images, image)
-			fmt.Printf("Uploaded %s to %s\n", fname, image.Link)
+			if !found {
+				images = append(images, image)
+				fmt.Printf("Uploaded %s to %s\n", fname, image.Link)
+			}
 		}
 	}
 
