@@ -35,7 +35,12 @@ func (i *API) get(url string) (body []byte, err error) {
 }
 
 func (i *API) getUnauthed(url string) (body []byte, err error) {
-	return responseProcessor(i.unauthedClient.Get(url))
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return []byte{}, err
+	}
+	req.Header.Set("User-Agent", "Bgur/0.0.3")
+	return responseProcessor(i.unauthedClient.Do(req))
 }
 
 func (i *API) post(url string, data url.Values) (body []byte, err error) {

@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"go.toolsGopath": "${workspaceFolder}/.tools"
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Attach to Process",
+				"type": "go",
+				"request": "attach",
+				"mode": "local",
+				"processId": 17844
+			}
+		]
+	}
+}
